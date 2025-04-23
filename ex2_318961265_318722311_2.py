@@ -69,7 +69,7 @@ def plot_PSTH(unit):
     plt.show()
 
 
-#plot_PSTH(unit=3)
+#plot_PSTH(3)
 
 
 # YOUR_CODE ends here
@@ -84,12 +84,12 @@ def von_mises_orientation(x, A, k, PO):
     return A * np.exp(k * np.cos(2 * (x - PO)))
 
 
-def gaussian_direction(x, A, m, s):
-    return A * np.exp(-((x - m) ** 2) / 2 * s ** 2)
+def gaussian_direction(x, A, mu, sigma):
+    return A * np.exp(-((x - mu) ** 2) / 2 * sigma ** 2)
 
 
-def gaussian_orientation(x, A, m, s):
-    return A * np.exp(-((2*(x - m)) ** 2) / 2 * s ** 2)
+def gaussian_orientation(x, A, mu, sigma):
+    return A * np.exp(-((2*(x - mu)) ** 2) / 2 * sigma ** 2)
 
 
 def fit_model(dir_fun, ori_fun, name):
@@ -98,8 +98,7 @@ def fit_model(dir_fun, ori_fun, name):
     stim_angles_rad = np.deg2rad(stim_angles_deg)
 
     fitted_models = []
-    rmse_direction_all = []
-    rmse_orientation_all = []
+    best_rmse = []
     mean_vectors_FR = []  # list of mean_FR per unit
     std_vectors_FR = []  # list of std_FR per unit
 
@@ -117,7 +116,8 @@ def fit_model(dir_fun, ori_fun, name):
         std_firing_rates = np.array(std_firing_rates)
         std_vectors_FR.append((std_firing_rates))
         p0 = [np.max(mean_firing_rates), 1, stim_angles_rad[np.argmax(mean_firing_rates)]]
-        # Fit direction tuning (on radians!)
+        
+        # Fit direction tuning (on radians)
         optimized_params_dir, _ = curve_fit(dir_fun, stim_angles_rad, mean_firing_rates,p0)
         pred_FR_dir = dir_fun(stim_angles_rad, *optimized_params_dir)
         rmse_dir = np.sqrt(np.mean((mean_firing_rates - pred_FR_dir) ** 2))
@@ -127,25 +127,25 @@ def fit_model(dir_fun, ori_fun, name):
         pred_FR_ori = ori_fun(stim_angles_rad, *optimized_params_ori)
         rmse_ori = np.sqrt(np.mean((mean_firing_rates - pred_FR_ori) ** 2))
 
-        print(f'RMSE Direction Unit #{unit + 1}: {rmse_dir:.2f}\nRSME Orientation Unit #{unit + 1}: {rmse_ori:.2f}')
         if rmse_dir < rmse_ori:
             fitted_models.append(lambda x, p=optimized_params_dir: dir_fun(x, *p))
-            rmse_direction_all.append(rmse_dir)
+            best_rmse.append(rmse_dir)
         else:
             fitted_models.append(lambda x, p=optimized_params_ori: ori_fun(x, *p))
-            rmse_orientation_all.append(rmse_ori)
+            best_rmse.append(rmse_ori)
+    print(f'RMSE  {np.mean(best_rmse):.2f} ± {np.std(best_rmse):.2f}')
 
     # YOUR_CODE ends here
 
     # plot
     # YOUR_CODE starts here
-
-    stim_angles_rad = np.linspace(0, 2 * np.pi, nDirections, endpoint=False)
+    # Create a figure with 2 rows and 5 columns of subplots
+    
     x_vec = np.linspace(0, 2 * np.pi, 1000)
     mean_vectors_FR = np.array(mean_vectors_FR)
     std_vectors_FR = np.array(std_vectors_FR)
 
-    fig, axes = plt.subplots(2, 5, figsize=(18, 7))
+    fig, axes = plt.subplots(2, 5, figsize=(12, 5))
     fig.suptitle(f'Direction/Orientation selectivity - {name} fit per unit', fontsize=16)
 
     for unit in range(nUnits):
@@ -175,48 +175,48 @@ def fit_model(dir_fun, ori_fun, name):
     plt.tight_layout(rect=[0, 0, 1, 0.93])
     plt.show()
     return mean_vectors_FR, std_vectors_FR
-'''print('\nVon Mises:')
+print('\nVon Mises:')
 fit_model(von_mises_direction,von_mises_orientation,'Von Mises')
 print('\nGaussian:')
-fit_model(gaussian_direction,gaussian_orientation,'Gaussian')'''
+fit_model(gaussian_direction,gaussian_orientation,'Gaussian')
 # YOUR_CODE ends here
 
-## 4. Correlation Between Tuning Strength and Variability
+# 4. Correlation Between Tuning Strength and Variability
 # YOUR_CODE starts here
-mean_FR_vector, std_FR_vector = fit_model(von_mises_direction, von_mises_orientation, 'Von Mises')
+# mean_FR_vector, std_FR_vector = fit_model(von_mises_direction, von_mises_orientation, 'Von Mises')
 
-correlations = []
-for unit in range(nUnits):
+# correlations = []
+# for unit in range(nUnits):
 
-    corr, pval = pearsonr(mean_FR_vector[unit], std_FR_vector[unit])
-    correlations.append((corr, pval))
+#     corr, pval = pearsonr(mean_FR_vector[unit], std_FR_vector[unit])
+#     correlations.append((corr, pval))
 
-    print(f'Unit #{unit + 1}: Pearson r = {corr:.3f}, p = {pval:.3e}')
+#     print(f'Unit #{unit + 1}: Pearson r = {corr:.3f}, p = {pval:.3e}')
 
-# YOUR_CODE ends here
+# # YOUR_CODE ends here
 
 
-## 5. Hypothesis Testing: 0° vs 180° for a single unit
-# YOUR_CODE starts here
-unit = 0  
-direction_1 = 0
-direction_2 = 6 
+# ## 5. Hypothesis Testing: 0° vs 180° for a single unit
+# # YOUR_CODE starts here
+# unit = 3
+# direction_1 = 8
+# direction_2 = 9 
 
-# Extract firing rates for the two directions for the specified unit
-firing_rates_dir1 = [len(data_arr[unit, direction_1, rep][0]) / measure_time for rep in range(nRepetitions)]
-firing_rates_dir2 = [len(data_arr[unit, direction_2, rep][0]) / measure_time for rep in range(nRepetitions)]
+# # Extract firing rates for the two directions for the specified unit
+# firing_rates_dir1 = [len(data_arr[unit, direction_1, rep][0]) / measure_time for rep in range(nRepetitions)]
+# firing_rates_dir2 = [len(data_arr[unit, direction_2, rep][0]) / measure_time for rep in range(nRepetitions)]
 
-# Perform paired t-test
-t_stat, p_value = ttest_rel(firing_rates_dir1, firing_rates_dir2)
+# # Perform paired t-test
+# t_stat, p_value = ttest_rel(firing_rates_dir1, firing_rates_dir2)
 
-# Print the results
-print(f'Paired t-test results for Unit #{unit + 1} between directions {direction_1 * 30}° and {direction_2 * 30}°:')
-print(f't-statistic = {t_stat:.3f}, p-value = {p_value:.3e}')
+# # Print the results
+# print(f'Paired t-test results for Unit #{unit + 1} between directions {direction_1 * 30}° and {direction_2 * 30}°:')
+# print(f't-statistic = {t_stat:.3f}, p-value = {p_value:.3e}')
 
-# Interpret the results
-if p_value < 0.05:
-    print("The firing rates differ significantly between the two directions (p < 0.05).")
-else:
-    print("No significant difference in firing rates between the two directions (p >= 0.05).")
+# # Interpret the results
+# if p_value < 0.05:
+#     print("The firing rates differ significantly between the two directions (p < 0.05).")
+# else:
+#     print("No significant difference in firing rates between the two directions (p >= 0.05).")
 
-# YOUR_CODE ends here
+# # YOUR_CODE ends here
