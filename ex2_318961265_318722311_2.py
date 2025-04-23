@@ -183,7 +183,7 @@ fit_model(gaussian_direction,gaussian_orientation,'Gaussian')'''
 
 ## 4. Correlation Between Tuning Strength and Variability
 # YOUR_CODE starts here
-'''mean_FR_vector, std_FR_vector = fit_model(von_mises_direction, von_mises_orientation, 'Von Mises')
+mean_FR_vector, std_FR_vector = fit_model(von_mises_direction, von_mises_orientation, 'Von Mises')
 
 correlations = []
 for unit in range(nUnits):
@@ -191,7 +191,7 @@ for unit in range(nUnits):
     corr, pval = pearsonr(mean_FR_vector[unit], std_FR_vector[unit])
     correlations.append((corr, pval))
 
-    print(f'Unit #{unit + 1}: Pearson r = {corr:.3f}, p = {pval:.3e}')'''
+    print(f'Unit #{unit + 1}: Pearson r = {corr:.3f}, p = {pval:.3e}')
 
 # YOUR_CODE ends here
 
