@@ -1,3 +1,4 @@
+from ast import Return
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,14 +16,6 @@ dicom_fp = "C:/Users/user/OneDrive/אוניברסיטה/מדעי המוח/שנה
 
 nSliceRows = 5
 nSliceCols = 6
-
-'''clim = [200, 1100]
-movieFps = 20
-plotTrialNo = # choose trial number
-axialPlotSliceNo = # an array of [axial slice, saggital slice, coronal slice]
-sagittalPlotSliceNo = # choose the correct saggitalpip slice number
-coronalPlotSliceNo = # choose the correct coronal slice number
-plotSliceCoord = [[70, 45], [70, 37], [62, 54]]'''
 
 tau = 0.5
 n = 3  # choose 3 or 4
@@ -161,7 +154,7 @@ axes[2].set_ylabel('Z')  # Add label to Z axis
 # Hide axes for a cleaner look (optional)
 for ax in axes:
     ax.axis('on')  # Keep the axes visible
-plt.suptitle(f"Axial, Sagittal, and Coronal Cuts at Time {(trial_time+1)*2}")
+plt.suptitle(f"Axial, Sagittal, and Coronal Cuts at Time {(trial_time)*2}")
 plt.tight_layout()
 plt.show()
 
@@ -260,6 +253,7 @@ def plot_voxel_time_series(fmri_4d, stim_vectors, corr_maps, name, tr=2.0, zscor
     
     n_timepoints = fmri_4d.shape[0]
     time_vector = np.arange(n_timepoints) * tr
+    selected_voxels = []
 
     for cond_idx, (stim_vec, corr_map) in enumerate(zip(stim_vectors, corr_maps), start=1):
         abs_corr = np.abs(corr_map)
@@ -278,6 +272,71 @@ def plot_voxel_time_series(fmri_4d, stim_vectors, corr_maps, name, tr=2.0, zscor
         if not found:
             print(f"[Condition {cond_idx}] No suitable voxel with correlation > {threshold}. Skipping.")
             continue
+        selected_voxels.append((slice_idx, y, x))
+
+        # Normalize
+        stim_vec_norm = zscore(stim_vec) if zscore_data else stim_vec
+        voxel_ts_norm = zscore(voxel_ts) if zscore_data else voxel_ts
+
+        # Correlation stats
+        R, p = pearsonr(voxel_ts_norm, stim_vec_norm)
+        if cond_idx == 1:
+            cond_name = "Coherent"
+        elif cond_idx == 2:
+            cond_name = "Incoherent"        
+        elif cond_idx == 3:
+            cond_name = "Biological"
+        # Plot
+        plt.figure(figsize=(10, 4))
+        plt.plot(time_vector, voxel_ts_norm, label='Voxel Time Series', linewidth=2)
+        plt.plot(time_vector, stim_vec_norm, label='Stimulus', linewidth=2)
+        plt.title(f"{cond_name} - {name}: Slice {slice_idx+1}, x={x}, y={y}\nR = {R:.2f}\np-value = {p:.2e}")
+        plt.xlabel('Time (s)')
+        plt.ylabel('Z-scored signal' if zscore_data else 'Signal')
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+    return selected_voxels
+
+corr_map_coherent = plot_correlation_overlay(coherent_stim_vec, slices_4d, corrThresh=0.3, title="Coherent stimulus", show=False)
+corr_map_incoherent = plot_correlation_overlay(incoherent_stim_vec, slices_4d, corrThresh=0.3, title="Incoherent stimulus", show=False)
+corr_map_biological = plot_correlation_overlay(biologic_stim_vec, slices_4d, corrThresh=0.3, title="Biological stimulus", show=False)
+
+stim_vectors = [coherent_stim_vec, incoherent_stim_vec, biologic_stim_vec]
+corr_maps = [corr_map_coherent, corr_map_incoherent, corr_map_biological]
+
+voxels = plot_voxel_time_series(slices_4d,stim_vectors,corr_maps, name = 'Binary',tr=2.0,zscore_data=True,threshold=0.3)
+# --- Define Hemodynamic Response Function (HRF) ---
+# Your code goes here
+def hrf(t):
+    t = np.array(t)
+    h = ((t / tau) ** (n - 1)) * np.exp(-t / tau) / (tau * factorial(n - 1))
+    return h
+
+t_hrf = np.arange(0, 2 * stimLen, TR)  # time vector for HRF
+hrf = hrf(t_hrf)
+
+# Convolution with the HRF
+conv_stim_1 = np.convolve(coherent_stim_vec, hrf)[:180]
+conv_stim_2 = np.convolve(incoherent_stim_vec, hrf)[:180]
+conv_stim_3 = np.convolve(biologic_stim_vec, hrf)[:180]
+
+# Apply overlay with convolved stimulus and save correlation maps
+conv_corr_map_1 = plot_correlation_overlay(conv_stim_1, slices_4d, corrThresh=0.3, title="HRF coherent", show=True)
+conv_corr_map_2 = plot_correlation_overlay(conv_stim_2, slices_4d, corrThresh=0.3, title="HRF incoherent", show=True)
+conv_corr_map_3 = plot_correlation_overlay(conv_stim_3, slices_4d, corrThresh=0.3, title="HRF biologic", show=True)
+
+def plot_voxel_time_series_conv(fmri_4d, stim_vectors,voxels, name, tr=2.0, zscore_data=True, threshold=0.3):
+    
+    # For each condition, finds a voxel with strong correlation (non-constant) and plots its time series with the stimulus.
+    
+    n_timepoints = fmri_4d.shape[0]
+    time_vector = np.arange(n_timepoints) * tr
+
+    for cond_idx, (stim_vec, voxel) in enumerate(zip(stim_vectors, voxels), start=1):
+        slice_idx, y, x = voxel
+        voxel_ts = fmri_4d[:, slice_idx, y, x]
 
         # Normalize
         stim_vec_norm = zscore(stim_vec) if zscore_data else stim_vec
@@ -303,35 +362,7 @@ def plot_voxel_time_series(fmri_4d, stim_vectors, corr_maps, name, tr=2.0, zscor
         plt.tight_layout()
         plt.show()
 
-corr_map_coherent = plot_correlation_overlay(coherent_stim_vec, slices_4d, corrThresh=0.3, title="Coherent stimulus", show=False)
-corr_map_incoherent = plot_correlation_overlay(incoherent_stim_vec, slices_4d, corrThresh=0.3, title="Incoherent stimulus", show=False)
-corr_map_biological = plot_correlation_overlay(biologic_stim_vec, slices_4d, corrThresh=0.3, title="Biological stimulus", show=False)
-
-stim_vectors = [coherent_stim_vec, incoherent_stim_vec, biologic_stim_vec]
-corr_maps = [corr_map_coherent, corr_map_incoherent, corr_map_biological]
-
-plot_voxel_time_series(slices_4d,stim_vectors,corr_maps, name = 'Binary',tr=2.0,zscore_data=True,threshold=0.3)
-# --- Define Hemodynamic Response Function (HRF) ---
-# Your code goes here
-def hrf(t):
-    t = np.array(t)
-    h = ((t / tau) ** (n - 1)) * np.exp(-t / tau) / (tau * factorial(n - 1))
-    return h
-
-t_hrf = np.arange(0, 2 * stimLen, TR)  # time vector for HRF
-hrf = hrf(t_hrf)
-
-# Convolution with the HRF
-conv_stim_1 = np.convolve(coherent_stim_vec, hrf)[:180]
-conv_stim_2 = np.convolve(incoherent_stim_vec, hrf)[:180]
-conv_stim_3 = np.convolve(biologic_stim_vec, hrf)[:180]
-
-# Apply overlay with convolved stimulus and save correlation maps
-conv_corr_map_1 = plot_correlation_overlay(conv_stim_1, slices_4d, corrThresh=0.3, title="HRF coherent", show=True)
-conv_corr_map_2 = plot_correlation_overlay(conv_stim_2, slices_4d, corrThresh=0.3, title="HRF incoherent", show=True)
-conv_corr_map_3 = plot_correlation_overlay(conv_stim_3, slices_4d, corrThresh=0.3, title="HRF biological", show=True)
-
-conv_corr_maps = [conv_corr_map_1, conv_corr_map_2, conv_corr_map_3]
+conv_stim = [conv_stim_1, conv_stim_2, conv_stim_3]
 
 # Apply time-series analysis on the new maps (that correspond to HRF)
-plot_voxel_time_series(fmri_4d=slices_4d,stim_vectors=[conv_stim_1, conv_stim_2, conv_stim_3],corr_maps=conv_corr_maps, name='Convolution',tr=TR,zscore_data=True,threshold=0.3)
+plot_voxel_time_series_conv(slices_4d,conv_stim,voxels, name='Convolution',tr=TR,zscore_data=True,threshold=0.3)
