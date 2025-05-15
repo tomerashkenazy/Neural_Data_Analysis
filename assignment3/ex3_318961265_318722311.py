@@ -25,7 +25,9 @@ stimLen = 14  # length of each trial
 stimOnLen = 8  # [sec]
 expOrder = [1, 3, 1, 2, 3, 2, 1, 1, 1, 3, 2, 1, 3, 3, 1, 2, 1, 2, 3, 2, 2, 3, 3, 2]
 corrThresh = 0.3
-
+PlotTrialNo = 4  # choose trial number
+plotSliceCoord = [[70, 45], [70, 37], [62, 54]]
+axialPlotSliceNo = 14
 # 1. DICOM data
 
 # Load DICOM files
@@ -76,7 +78,7 @@ for i, idx in enumerate(random_indices):
     axs[i].axis('off')  # Turn off axis for clarity
     axs[i].set_title(f"Image {idx + 1}")  # Set title for each image
 
-plt.suptitle("Randomly Selected DICOM Slices")
+plt.suptitle("Randomly Selected DICOM Slices - 30 slices per image")
 plt.tight_layout()
 plt.show()
 
@@ -118,12 +120,15 @@ cv2.destroyAllWindows()
 
 # --- Plot sagittal and coronal cuts ---
 # Your code goes here
-trial_time = 11
+trial_num = PlotTrialNo - 1  # trial number 
+trial_time = int(trial_num * stimLen + startLen)  # time point to plot
 
 # Correctly extract the slices for each plane
-axial_slice = slices_4d[trial_time, 15, :, :]
-sagittal_slice = slices_4d[trial_time, :, :, 48]
-coronal_slice = slices_4d[trial_time, :, 48, :]
+axial_slice = slices_4d[trial_num, axialPlotSliceNo, :, :]
+x = plotSliceCoord[1][1]
+sagittal_slice = slices_4d[trial_num, :, :, x]
+y = plotSliceCoord[2][1]
+coronal_slice = slices_4d[trial_num, :, y, :]
 
 # Flip the images to match the correct orientation (if needed)
 axial_slice = np.flip(axial_slice, axis=1)  # Flip if needed
@@ -154,7 +159,7 @@ axes[2].set_ylabel('Z')  # Add label to Z axis
 # Hide axes for a cleaner look (optional)
 for ax in axes:
     ax.axis('on')  # Keep the axes visible
-plt.suptitle(f"Axial, Sagittal, and Coronal Cuts at Time {(trial_time)*2}")
+plt.suptitle(f"Axial, Sagittal, and Coronal Cuts at Time {(trial_time)}[Sec]")
 plt.tight_layout()
 plt.show()
 
