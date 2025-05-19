@@ -12,8 +12,9 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from math import factorial
 
-dicom_fp = "C:/Users/user/OneDrive/אוניברסיטה/מדעי המוח/שנה ג/ניתוח נתונים ממערכות עצביות/עבודה 3/DICOM"  # TODO - add file path to DICOM images
+# dicom_fp = "C:/Users/user/OneDrive/אוניברסיטה/מדעי המוח/שנה ג/ניתוח נתונים ממערכות עצביות/עבודה 3/DICOM"  # TODO - add file path to DICOM images
 
+dicom_fp = "DICOM" 
 nSliceRows = 5
 nSliceCols = 6
 
